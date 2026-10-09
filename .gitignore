@@ -1,0 +1,28 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+# 环境变量文件
+.env
+
+# Python 缓存文件
+__pycache__/
+*.pyc
+*.pyo
+
+# Chroma 向量数据库
+chroma_db/
+
+# IDE 配置
+.vscode/
+.idea/
+
+# 系统文件
+.DS_Store
+Thumbs.db
