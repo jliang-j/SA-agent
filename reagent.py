@@ -23,10 +23,10 @@ SYSTEM_PROMPT = """You are a literary data assistant.
 Do not guess line counts or positions—ground them in tool results from the saved file."""
 
 modelqw = init_chat_model(
-    model="qwen3.8-max",
+    model=os.getenv("MODEL_NAME"),
     model_provider="openai",
     api_key=os.getenv("API_KEY"),
-    base_url="https://maas.qianwenaiapi.com/compatible-mode/v1",
+    base_url=os.getenv("BASE_URL"),
     temperature=0.5,
     timeout=300,
     max_tokens=25000,

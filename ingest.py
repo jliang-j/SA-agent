@@ -8,10 +8,10 @@ from langchain.tools import tool
 load_dotenv(encoding="utf-8")
 
 modelqw = init_chat_model(
-    model="qwen3.8-max",
+    model=os.getenv("MODEL_NAME"),
     model_provider="openai",
     api_key=os.getenv("API_KEY"),
-    base_url="https://maas.qianwenaiapi.com/compatible-mode/v1",
+    base_url=os.getenv("BASE_URL"),
 )
 
 @tool
