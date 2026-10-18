@@ -1,11 +1,33 @@
-import pytest
 
-from sa_agent.retrieval.store import search_documents
+import pytest
 
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
-from langchain_core.vectorstores import InMemoryVectorStore
-from sa_agent.retrieval.store import search_documents
+
+from sa_agent.retrieval.store import (
+    create_persistent_vector_store,
+    search_documents,
+)
+
+
+class FakeEmbeddings(Embeddings):
+    """测试专用的模拟 Embedding，不调用真实 API。"""
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [self._embed(text) for text in texts]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._embed(text)
+
+    @staticmethod
+    def _embed(text: str) -> list[float]:
+        text = text.lower()
+        return [
+            float("风险" in text),
+            float("数据" in text),
+            float("增长" in text),
+        ]
+
 
 def test_search_rejects_empty_query():
     with pytest.raises(ValueError, match="检索问题不能为空"):
@@ -17,73 +39,85 @@ def test_search_rejects_non_positive_k():
         search_documents(None, "行业风险", k=0)
 
 
-
-
-
-class FakeEmbeddings(Embeddings):
-    """用于测试的模拟 Embedding，不调用真实模型 API。"""
-
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        return [self._embed(text) for text in texts]
-
-    def embed_query(self, text: str) -> list[float]:
-        return self._embed(text)
-
-    @staticmethod
-    def _embed(text: str) -> list[float]:
-        text = text.lower()
-
-        # 用简单的关键词特征模拟向量，便于验证检索流程。
-        return [
-            float("行业" in text),
-            float("风险" in text),
-            float("增长" in text),
-        ]
-
-
-def test_search_returns_documents_with_metadata():
+def test_reimport_updates_existing_document(tmp_path):
     embeddings = FakeEmbeddings()
-    vector_store = InMemoryVectorStore(embedding=embeddings)
+    persist_directory = tmp_path / "chroma"
 
-    documents = [
-        Document(
-            page_content="行业面临多种风险。",
-            metadata={"source": "report.txt", "chunk_index": 0},
-        ),
-        Document(
-            page_content="行业增长情况良好。",
-            metadata={"source": "growth.txt", "chunk_index": 1},
-        ),
-    ]
-    vector_store.add_documents(documents)
-
-    results = search_documents(
-        vector_store,
-        query="行业风险",
-        k=1,
+    original = Document(
+        page_content="企业需要关注数据风险。",
+        metadata={"source": "report.txt", "chunk_index": 0},
     )
 
-    assert len(results) == 1
-    assert isinstance(results[0], Document)
-    assert results[0].metadata["source"] == "report.txt"
-    assert results[0].metadata["chunk_index"] == 0
-
-
-def test_search_respects_k():
-    embeddings = FakeEmbeddings()
-    vector_store = InMemoryVectorStore(embedding=embeddings)
-
-    documents = [
-        Document(page_content="行业风险分析"),
-        Document(page_content="行业增长分析"),
-        Document(page_content="行业发展分析"),
-    ]
-    vector_store.add_documents(documents)
-
-    results = search_documents(
-        vector_store,
-        query="行业",
-        k=2,
+    store = create_persistent_vector_store(
+        documents=[original],
+        persist_directory=persist_directory,
+        collection_name="dedup_test",
+        embeddings=embeddings,
     )
 
-    assert len(results) == 2
+    updated = Document(
+        page_content="企业需要关注数据安全和隐私风险。",
+        metadata={"source": "report.txt", "chunk_index": 0},
+    )
+
+    # 再次导入相同文档身份，但正文已经更新。
+    store.add_documents(
+        documents=[updated],
+        ids=[
+            __import__(
+                "sa_agent.retrieval.store",
+                fromlist=["_generate_document_id"],
+            )._generate_document_id(updated)
+        ],
+    )
+
+    records = store.get(where={"source": "report.txt"})
+
+    assert len(records["ids"]) == 1
+    assert records["documents"][0] == updated.page_content
+
+def test_reimport_persists_without_duplicate_records(tmp_path):
+    embeddings = FakeEmbeddings()
+    persist_directory = tmp_path / "chroma"
+    collection_name = "persistent_dedup_test"
+
+    document = Document(
+        page_content="企业需要关注数据风险。",
+        metadata={"source": "report.txt", "chunk_index": 0},
+    )
+
+    # 第一次导入
+    store = create_persistent_vector_store(
+        documents=[document],
+        persist_directory=persist_directory,
+        collection_name=collection_name,
+        embeddings=embeddings,
+    )
+
+    # 使用相同来源和片段序号，更新正文并再次导入
+    updated_document = Document(
+        page_content="企业需要关注数据安全和隐私风险。",
+        metadata={"source": "report.txt", "chunk_index": 0},
+    )
+
+    from sa_agent.retrieval.store import _generate_document_id
+
+    store.add_documents(
+        documents=[updated_document],
+        ids=[_generate_document_id(updated_document)],
+    )
+
+    # 重新打开数据库，不传入文档
+    reopened_store = create_persistent_vector_store(
+        persist_directory=persist_directory,
+        collection_name=collection_name,
+        embeddings=embeddings,
+    )
+
+    records = reopened_store.get(
+        where={"source": "report.txt"}
+    )
+
+    assert len(records["ids"]) == 1
+    assert records["documents"][0] == updated_document.page_content
+    assert records["metadatas"][0]["chunk_index"] == 0
