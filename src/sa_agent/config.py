@@ -14,7 +14,6 @@ class Settings(BaseSettings):
         extra="ignore",
     )
     embedding_model: str = Field(
-        default="text-embedding-v3",
         validation_alias="EMBEDDING_MODEL",
     )
 
