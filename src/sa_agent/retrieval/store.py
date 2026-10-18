@@ -24,17 +24,21 @@ def create_vector_store(
 
 def _generate_document_id(document: Document) -> str:
     """根据文档身份生成稳定的唯一 ID。"""
+    source_path = document.metadata.get("source_path")
     source = document.metadata.get("source")
     chunk_index = document.metadata.get("chunk_index")
 
-    if source is not None and chunk_index is not None:
-        # 同一来源的同一片段始终使用相同 ID。
+    if source_path is not None and chunk_index is not None:
+        identity = {
+            "source_path": str(source_path),
+            "chunk_index": chunk_index,
+        }
+    elif source is not None and chunk_index is not None:
         identity = {
             "source": str(source),
             "chunk_index": chunk_index,
         }
     else:
-        # 缺少完整身份信息时，使用正文和元数据生成 ID。
         identity = {
             "source": source,
             "metadata": document.metadata,
