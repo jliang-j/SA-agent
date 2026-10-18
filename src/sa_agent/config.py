@@ -13,6 +13,9 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
-
+    embedding_model: str = Field(
+        default="text-embedding-v3",
+        validation_alias="EMBEDDING_MODEL",
+    )
 
 settings = Settings()
