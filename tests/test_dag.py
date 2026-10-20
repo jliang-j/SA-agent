@@ -1,4 +1,6 @@
 
+from threading import Barrier, Event
+
 import pytest
 
 from sa_agent.workflows.dag import DAG, Node
@@ -131,3 +133,72 @@ def test_repeat_run():
     assert second["source"].error is None
     assert second["child"].status == "success"
     assert second["child"].output == 8
+
+#并发验证
+def test_parallel():
+    barrier = Barrier(2)
+
+    def work():
+        barrier.wait(timeout=5)
+        return 1
+
+    dag = DAG([
+        Node("left", work),
+        Node("right", work),
+        Node("join", lambda left, right: left + right, ["left", "right"]),
+    ])
+
+    results = dag.run(max_workers=2)
+
+    assert all(result.status == "success" for result in results.values())
+    assert results["join"].output == 2
+
+# 快分支的下游发出信号，释放慢分支，验证就绪任务能及时推进。
+def test_ready_branch():
+    released = Event()
+
+    def slow():
+        assert released.wait(timeout=5), "应在慢分支完成前调度快分支的下游"
+        return "slow"
+
+    def child(fast):
+        assert fast == "fast"
+        released.set()
+        return "child"
+
+    dag = DAG([
+        Node("slow", slow),
+        Node("fast", lambda: "fast"),
+        Node("child", child, ["fast"]),
+        Node("join", lambda slow, child: (slow, child), ["slow", "child"]),
+    ])
+
+    results = dag.run(max_workers=2)
+
+    assert all(result.status == "success" for result in results.values())
+    assert results["join"].output == ("slow", "child")
+
+#单线程测试
+def test_one_worker():
+    calls = []
+
+    def work(name):
+        calls.append(name)
+        return name
+
+    dag = DAG([
+        Node("a", lambda: work("a")),
+        Node("b", lambda: work("b")),
+        Node("c", lambda a, b: work(a + b), ["a", "b"]),
+    ])
+
+    results = dag.run(max_workers=1)
+
+    assert calls == ["a", "b", "ab"]
+    assert results["c"].status == "success"
+
+#非法线程拒绝测试
+@pytest.mark.parametrize("workers", [0, -1, True, 1.5, "2", None])
+def test_bad_workers(workers):
+    with pytest.raises(ValueError, match="正整数"):
+        DAG([]).run(max_workers=workers)
