@@ -65,6 +65,8 @@ def test_research_flow(monkeypatch):
     )
 
     assert calls == ["retrieve", "extract", "verify"]
+    assert set(result) == {"question", "retrieval", "extraction", "verification"}
+    assert result["question"] == "如何处理重复数据？"
     assert result["retrieval"] == retrieved
     assert result["extraction"] == extracted
     assert result["verification"]["passed_count"] == 1
@@ -89,3 +91,26 @@ def test_research_stops_if_extract_fails(monkeypatch):
             vector_store=object(),
             question="测试问题",
         )
+
+
+@pytest.mark.parametrize("stage", ["retrieve", "extract", "verify"])
+def test_stage_failure(monkeypatch, stage):
+    calls = []
+    error = RuntimeError(f"{stage} 失败")
+
+    def step(name):
+        calls.append(name)
+        if name == stage:
+            raise error
+        return {}
+
+    monkeypatch.setattr(research, "run_retrieval", lambda **kwargs: step("retrieve"))
+    monkeypatch.setattr(research, "run_extract", lambda data: step("extract"))
+    monkeypatch.setattr(research, "run_verify", lambda **kwargs: step("verify"))
+
+    with pytest.raises(RuntimeError) as caught:
+        research.run_research(object(), "测试问题")
+
+    assert caught.value is error
+    stages = ["retrieve", "extract", "verify"]
+    assert calls == stages[:stages.index(stage) + 1]
