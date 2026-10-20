@@ -1,13 +1,22 @@
 from collections import deque
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 
 @dataclass
 class Node:
+    """依赖节点的输出以同名关键字参数传给 run。"""
     name: str
     run: Callable[..., Any]
     deps: list[str] = field(default_factory=list)
+
+#保存节点状态、输出和原始异常
+@dataclass
+class NodeResult:
+    status: Literal["pending", "running", "success", "failed", "skipped"] = "pending"
+    output: Any = None
+    error: Exception | None = None
 
 
 class DAG:
@@ -28,6 +37,46 @@ class DAG:
                     )
 
         self.topological_sort()
+    # 按依赖就绪调度节点，独立节点可并行执行。
+    def run(self, max_workers: int = 4) -> dict[str, NodeResult]:
+        """并行执行就绪节点；节点应避免修改共享的上游输出。"""
+        if isinstance(max_workers, bool) or not isinstance(max_workers, int) or max_workers < 1:
+            raise ValueError("max_workers 必须是正整数") #限制同时工作的线程数量
+        order = self.topological_sort()
+        results = {name: NodeResult() for name in self.nodes}
+        pending = dict.fromkeys(order)
+        running = {}
+
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            while pending or running:
+                for name in list(pending):
+                    node = self.nodes[name]
+                    states = [results[dep].status for dep in node.deps]
+                    if any(state in {"failed", "skipped"} for state in states):
+                        results[name].status = "skipped"
+                        del pending[name]
+                    elif all(state == "success" for state in states) and len(running) < max_workers:
+                        inputs = {dep: results[dep].output for dep in node.deps}
+                        future = pool.submit(node.run, **inputs)
+                        running[future] = name
+                        results[name].status = "running"
+                        del pending[name]
+
+                if not running:
+                    continue
+
+                done, _ = wait(running, return_when=FIRST_COMPLETED)
+                for future in done:
+                    result = results[running.pop(future)]
+                    try:
+                        result.output = future.result()
+                    except Exception as exc:
+                        result.status = "failed"
+                        result.error = exc
+                    else:
+                        result.status = "success"
+
+        return results
 
     def topological_sort(self) -> list[str]:
         indegree = {
