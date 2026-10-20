@@ -8,7 +8,7 @@ from sa_agent.embeddings import create_embeddings
 from sa_agent.retrieval.ingest import ingest_text_file
 from sa_agent.retrieval.qa import answer_question
 from sa_agent.retrieval.store import create_persistent_vector_store
-
+from sa_agent.workflows.research import run_research
 
 app = FastAPI(title="SA-Agent", description="可信行业研究助手")
 
@@ -84,4 +84,30 @@ def ask_question(request: QuestionRequest):
         raise HTTPException(
             status_code=500,
             detail="问答处理失败，请检查服务日志",
+        ) from exc
+
+@app.post("/research")
+def research_question(request: QuestionRequest):
+    #print("收到的问题：", request.question)
+    #print("问题字符编码：", [hex(ord(c)) for c in request.question])
+    if not request.question.strip():
+        raise HTTPException(status_code=400, detail="问题不能为空")
+
+    try:
+        
+        vector_store = create_persistent_vector_store(
+            persist_directory=VECTOR_STORE_DIR,
+            collection_name=COLLECTION_NAME,
+            embeddings=create_embeddings(),
+        )
+
+        return run_research(
+            vector_store=vector_store,
+            question=request.question,
+            k=request.k,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="研究流程执行失败，请检查服务日志",
         ) from exc
