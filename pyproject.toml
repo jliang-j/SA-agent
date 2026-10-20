@@ -32,3 +32,7 @@ dev = [
     "httpx>=0.28.1",
     "pytest>=9.1.1",
 ]
+[tool.pytest.ini_options]
+markers = [
+    "integration: 需要真实模型或外部服务的集成测试",
+]
