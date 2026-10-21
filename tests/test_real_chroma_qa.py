@@ -1,6 +1,5 @@
 
 from pathlib import Path
-
 from langchain_core.documents import Document
 
 from sa_agent.retrieval.qa import answer_question
@@ -84,10 +83,8 @@ def main():
             f"- {source['source']} "
             f"(片段 {source['chunk_index']})"
         )
-
     print(f"\nChroma 数据目录：{PERSIST_DIRECTORY.resolve()}")
     print("\n测试流程执行完成。")
-
 
 if __name__ == "__main__":
     main()

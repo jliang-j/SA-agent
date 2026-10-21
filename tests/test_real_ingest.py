@@ -1,12 +1,11 @@
-
-from langchain_core.documents import Document
+import pytest
 
 from sa_agent.embeddings import create_embeddings
 from sa_agent.retrieval.ingest import ingest_text_file
 from sa_agent.retrieval.qa import answer_question
 from sa_agent.retrieval.store import create_persistent_vector_store
 
-
+@pytest.mark.integration
 def test_real_document_ingest_and_qa(tmp_path):
     # 准备一份真实待导入的测试文档。
     document_path = tmp_path / "industry_risks.txt"
