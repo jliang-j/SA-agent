@@ -41,10 +41,6 @@ data/documents/*
 !data/documents/ai_industry_governance.txt
 !data/documents/ai_industry_risks.txt
 
-# 测试缓存与日常研究输出；保留历史验收案例和展示截图
+# 测试缓存与本地研究输出
 .pytest_cache/
-outputs/*
-!outputs/acceptance_supported.json
-!outputs/acceptance_missing.json
-!outputs/documents-preview.jpg
-!outputs/frontend-preview.jpg
+outputs/

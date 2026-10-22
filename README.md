@@ -109,6 +109,7 @@ uv run python demo_agent.py --output outputs/my_research.json
 ```
 
 按终端提示输入问题，完整结果保存为UTF-8 JSON。
+`outputs/`仅保存本地生成结果，不纳入版本控制；目录不存在时由脚本自动创建。
 
 ## API
 
