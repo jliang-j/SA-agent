@@ -24,6 +24,9 @@ def run_retrieval(vector_store, question: str, k: int = 3) -> dict:
         }
         for doc in docs
     ]
+    for item, doc in zip(results, docs):
+        if "page" in doc.metadata:
+            item["page"] = doc.metadata["page"]
 
     return {
         "question": question,

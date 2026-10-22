@@ -1,2 +1,1 @@
-def main() -> None:
-    print("Hello from sa-agent!")
+"""AI行业研究助手。"""

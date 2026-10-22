@@ -1,27 +1,24 @@
 [project]
 name = "sa-agent"
 version = "0.1.0"
-description = "Add your description here"
+description = "基于本地AI行业资料、工具调用与DAG编排的研究助手"
 readme = "README.md"
 authors = [
     { name = "JL", email = "by335707@163.com" }
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "deepagents>=0.7.24",
-    "dotenv>=0.9.9",
     "fastapi>=0.143.1",
     "langchain>=1.4.4",
     "langchain-chroma>=1.1.0",
-    "langchain-community>=0.4.2",
     "langchain-openai>=1.7.0",
     "langchain-text-splitters>=1.1.3",
     "pydantic-settings>=2.16.0",
+    "pypdf>=6.21.2",
+    "python-docx>=1.2.0",
+    "python-multipart>=0.0.32",
     "uvicorn[standard]>=0.54.0",
 ]
-
-[project.scripts]
-sa-agent = "sa_agent:main"
 
 [build-system]
 requires = ["uv_build>=0.12.24,<0.13.0"]
