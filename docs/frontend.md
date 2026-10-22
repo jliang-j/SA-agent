@@ -1,0 +1,46 @@
+# 前端实现与验收
+
+## 启动
+
+在项目根目录执行：
+
+```powershell
+uv run uvicorn sa_agent.main:app --reload
+```
+
+打开 http://127.0.0.1:8000/ 。前端由 FastAPI 托管，无需 Node、npm、前端构建或额外服务。
+API 文档仍在 `/docs`。右上角文档库现支持上传和重试，详细说明见 `docs/documents.md`。
+
+## 文件职责
+
+| 文件 | 职责 |
+|---|---|
+| `src/sa_agent/main.py` | 首页和 `/static` 路由，已有 API 保持不变 |
+| `src/sa_agent/static/index.html` | 输入、等待、错误、简报、证据弹窗和执行记录的结构 |
+| `src/sa_agent/static/style.css` | 浅色及绿色视觉样式，桌面和窄屏布局 |
+| `src/sa_agent/static/app.js` | 请求 `/agent/research`、状态切换、结果检查和安全文本渲染 |
+| `tests/test_frontend.py` | 页面及资源可访问性、原健康检查兼容性 |
+
+`app.js` 的主要函数：`submitResearch` 负责请求与恢复；`renderReport` 负责简报；
+`showEvidence` 展开引用；`renderTrace` 展示完成后的执行记录。
+模型文本通过 `textContent` 渲染，不作为 HTML 执行。
+
+## 手动验收
+
+1. 在 `/docs` 导入两份已有示例文档；已有向量库可以直接使用。
+2. 打开首页，点击“风险与治理”填入示例，再点击“开始研究”。
+3. 等待时输入与提交按钮禁用，显示等待秒数，不显示虚构进度。
+4. 完成后查看概述、结论和缺口；点击任一 `[E编号]`，核对来源、片段与原文。
+5. 展开执行记录，查看计划、查询和检索/提取/核验状态。
+6. 测试“市场规模与资料缺口”：允许出现无结论、无证据的有效结果。
+7. 错误请求应显示错误，恢复输入与提交；页面不自动重试真实模型请求。
+
+## 本轮验证边界
+
+浏览器验收使用独立本地测试服务，回放 `outputs/acceptance_supported.json` 和
+`outputs/acceptance_missing.json`，并模拟延时和 HTTP 500，未调用真实模型。
+正常展示、引用弹窗、等待禁用、资料不足、HTTP 错误及再次提交均已检查。
+正式页面没有回放或测试分支，始终调用同源 `/agent/research`。
+后端真实链路结果见 `docs/acceptance.md`；浏览器直接触发真实研究可按上面的步骤执行。
+
+页面是单次研究工作台，刷新后研究结果不保留，已导入文档会保留。当前不提供实时节点进度、登录或研究历史。
