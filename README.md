@@ -179,4 +179,4 @@ docs/              # 接入说明、验收记录、资料指南与后续计划
 - 模型可能扩大范围、提取遗漏或产生格式错误；目前格式与引用错误直接报错，不自动修复。
 - 已有真实链路案例通过，但真实资料评测规模有限；没有生产级质量或性能承诺。
 
-更多说明：[文档接入](docs/documents.md)、[前端验收](docs/frontend.md)、[后端验收](docs/acceptance.md)、[后续计划](docs/next-steps.md)。
+更多说明：[文档接入](docs/documents.md)、[前端验收](docs/frontend.md)、[后端验收](docs/acceptance.md)。
