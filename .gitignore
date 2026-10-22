@@ -32,6 +32,7 @@ data/chroma/
 Thumbs.db
 desktop.ini
 writing-block.md
+docs/next-steps.md
 # 本地文档导入状态
 data/documents/.document_status.json
 data/documents/.status-*.tmp
