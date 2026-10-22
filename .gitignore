@@ -32,3 +32,15 @@ data/chroma/
 Thumbs.db
 desktop.ini
 writing-block.md
+# 本地文档导入状态
+data/documents/.document_status.json
+data/documents/.status-*.tmp
+
+# 本地上传资料，只提交自编示例
+data/documents/*
+!data/documents/ai_industry_governance.txt
+!data/documents/ai_industry_risks.txt
+
+# 测试缓存与本地研究输出
+.pytest_cache/
+outputs/

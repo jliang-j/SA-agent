@@ -1,9 +1,10 @@
 
-import json
-
 from pydantic import BaseModel, Field, ValidationError
 
 from sa_agent.llm import create_chat_model
+
+
+MAX_FACTS = 8
 
 
 class Fact(BaseModel):
@@ -13,13 +14,14 @@ class Fact(BaseModel):
     source: str = Field(min_length=1)
     chunk_index: int | None = None
     evidence: str = Field(min_length=1)
+    page: int | None = Field(default=None, ge=1)
 
 
 class ExtractOut(BaseModel):
     """信息提取结果。"""
 
     question: str
-    facts: list[Fact]
+    facts: list[Fact] = Field(max_length=MAX_FACTS)
 
 
 def run_extract(data: dict) -> dict:
@@ -53,7 +55,7 @@ def run_extract(data: dict) -> dict:
     )
 
     prompt = f"""
-你是一个严谨的信息提取助手。
+你是AI行业研究中的信息提取助手。
 
 请根据用户问题，从提供的资料中提取有直接依据的事实。
 只输出合法 JSON，不要添加 Markdown 代码围栏或其他解释。
@@ -77,6 +79,11 @@ def run_extract(data: dict) -> dict:
 3. source 和 chunk_index 必须与对应资料一致。
 4. 没有可提取的事实时，facts 返回空列表。
 5. 不得把推测写成事实。
+6. 涉及数字时，保留原文明确的年份、地域、单位和统计口径，不自行补全缺失信息。
+7. 作者观点、预测或产品宣称须保留归属与限定语，不得改写成已证实的普遍事实。
+8. facts 在整个当前任务中最多 {MAX_FACTS} 条，不是每份资料或每个片段各 {MAX_FACTS} 条。
+9. 优先选择直接回答研究目标的关键事实，按重要性排列，避免重复和无关细节；不要为凑数量提取。
+10. 资料充分时也不必用满上限；保留必要条件与统计口径，不得为了减少条数把无关结论拼成一条。
 
 资料：
 {context}
@@ -89,7 +96,11 @@ def run_extract(data: dict) -> dict:
 
     try:
         output = ExtractOut.model_validate_json(reply.content)
-    except (ValidationError, ValueError, TypeError) as exc:
+    except ValidationError as exc:
+        if any(error["loc"] == ("facts",) and error["type"] == "too_long" for error in exc.errors()):
+            raise ValueError(f"单个子任务最多提取{MAX_FACTS}条关键事实，模型返回超出上限") from exc
+        raise ValueError("模型返回的 JSON 格式无效") from exc
+    except (ValueError, TypeError) as exc:
         raise ValueError("模型返回的 JSON 格式无效") from exc
 
     if output.question != question:
@@ -114,5 +125,10 @@ def run_extract(data: dict) -> dict:
                 raise ValueError("提取结果包含不存在的来源")
 
             raise ValueError("提取结果包含无法在原文中找到的证据")
+
+        # 页码来自检索元数据，不信任模型自行生成的页码。
+        matched = next(item for item in results if item["source"] == fact.source
+                       and item.get("chunk_index") == fact.chunk_index and fact.evidence in item["content"])
+        fact.page = matched.get("page")
 
     return output.model_dump()

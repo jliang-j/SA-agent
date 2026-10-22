@@ -1,2 +1,1 @@
-def main() -> None:
-    print("Hello from sa-agent!")
+"""研究任务编排与执行。"""
