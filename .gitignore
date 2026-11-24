@@ -45,3 +45,6 @@ data/documents/*
 # 测试缓存与本地研究输出
 .pytest_cache/
 outputs/
+
+# 本地副本，不纳入仓库
+py/

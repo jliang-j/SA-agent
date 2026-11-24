@@ -145,8 +145,10 @@ def run_agent(vector_store, question: str, k: int = 3) -> dict:
     )
     final = result["messages"][-1]
     if not history:
+        #模型从不调工具、凭常识直接回答
         raise ValueError("Agent 未执行有效研究，不能直接返回回答")
     if not isinstance(final, AIMessage) or final.tool_calls or not final.content:
+        #最后一条不是 AI 消息（异常路径）/模型还想调工具但被 recursion_limit 截断/空回答
         raise ValueError("Agent 未生成最终回答")
     evidence = collect_evidence(history)
     report = parse_report(final.content, evidence)
